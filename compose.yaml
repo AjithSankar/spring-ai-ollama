@@ -9,6 +9,18 @@ services:
       - ollama_data:/root/.ollama
     restart: unless-stopped
 
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pgvector-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ragdb
+      POSTGRES_USER: raguser
+      POSTGRES_PASSWORD: ragpass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   spring-app:
     build: .
     container_name: ai-chatbot
@@ -21,3 +33,4 @@ services:
 
 volumes:
   ollama_data:
+  pgdata:

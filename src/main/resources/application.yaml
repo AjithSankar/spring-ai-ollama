@@ -6,5 +6,15 @@ spring:
   ai:
     ollama:
       base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
+      embedding:
+        model: nomic-embed-text
       chat:
         model: llama3
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+
+  datasource:
+    url: jdbc:postgresql://postgres:5432/ragdb
+    username: raguser
+    password: ragpass
