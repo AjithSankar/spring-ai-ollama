@@ -10,14 +10,20 @@ spring:
         model: nomic-embed-text
       chat:
         model: qwen2.5:7b
+        memory:
+          repository:
+            jdbc:
+              initialize-schema: always
+              platform: postgres
     vectorstore:
       pgvector:
         initialize-schema: true
 
   datasource:
-    url: jdbc:postgresql://postgres:5432/ragdb
+    url: jdbc:postgresql://localhost:5432/ragdb
     username: raguser
     password: ragpass
+    driver-class-name: org.postgresql.Driver
 
 logging:
   level:
