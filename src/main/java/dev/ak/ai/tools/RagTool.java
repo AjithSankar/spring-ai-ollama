@@ -1,0 +1,29 @@
+package dev.ak.ai.tools;
+
+import org.springframework.ai.document.Document;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Component
+public class RagTool {
+
+    private final VectorStore vectorStore;
+
+    public RagTool(VectorStore vectorStore) {
+        this.vectorStore = vectorStore;
+    }
+
+    @Tool(description = "Search documents for relevant information")
+    public String searchDocuments(String query) {
+
+        List<Document> docs = vectorStore.similaritySearch(query);
+
+        return docs.stream()
+                .map(Document::getText)
+                .collect(Collectors.joining("\n"));
+    }
+}

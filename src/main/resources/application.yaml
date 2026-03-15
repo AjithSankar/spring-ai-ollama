@@ -9,7 +9,7 @@ spring:
       embedding:
         model: nomic-embed-text
       chat:
-        model: llama3
+        model: qwen2.5:7b
     vectorstore:
       pgvector:
         initialize-schema: true
@@ -18,3 +18,7 @@ spring:
     url: jdbc:postgresql://postgres:5432/ragdb
     username: raguser
     password: ragpass
+
+logging:
+  level:
+    org.springframework.ai: DEBUG

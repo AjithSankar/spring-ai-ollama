@@ -32,18 +32,21 @@ public class RagService {
                             .map(Document::getText)
                             .collect(Collectors.joining("\n"));
 
-                    String prompt = """
-                        Use the following context to answer the question.
+                    return chatClient.prompt()
+                            .system("""
+                        You are an AI assistant that answers questions using the provided context.
 
+                        Always prefer calling available tools if they can answer the question.
+                        If the answer is found in the context, use it.
+                        If the question is unrelated, say you don't know.
+                        """)
+                            .user("""
                         Context:
                         %s
 
                         Question:
                         %s
-                        """.formatted(context, question);
-
-                    return chatClient.prompt()
-                            .user(prompt)
+                        """.formatted(context, question))
                             .stream()
                             .content();
                 });

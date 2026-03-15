@@ -100,7 +100,9 @@
 
     document.getElementById("typing").classList.remove("hidden")
 
-    const response = await fetch("/ai/rag?question="+encodeURIComponent(question))
+    const conversationId = crypto.randomUUID();
+
+    const response = await fetch("/agent/ask?question=" + encodeURIComponent(question) + "&conversationId=" + conversationId);
 
     const reader = response.body.getReader()
 
