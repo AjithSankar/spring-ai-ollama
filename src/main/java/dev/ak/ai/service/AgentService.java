@@ -8,6 +8,7 @@ import dev.ak.ai.tools.RagTool;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -19,6 +20,9 @@ public class AgentService {
     private final ChatClient chatClient;
     private final ConversationRepository conversationRepository;
     private final TitleService titleService;
+
+    @Autowired
+    private AiDebugLogger debugLogger;
 
     public AgentService(ChatClient.Builder builder, DatabaseTool databaseTool,
                         HttpClientTool httpClientTool, RagTool ragTool,
@@ -32,6 +36,9 @@ public class AgentService {
     }
 
     public Flux<String> ask(String question, String conversationId) {
+
+        debugLogger.log("USER QUESTION", question);
+        debugLogger.log("CONVERSATION ID", conversationId);
 
         Conversation convo = conversationRepository.findById(UUID.fromString(conversationId));
 
