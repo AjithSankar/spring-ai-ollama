@@ -32,7 +32,17 @@ public class AiController {
     }
 
     @GetMapping(value="/rag", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> rag(@RequestParam String question) {
-        return ragService.ask(question);
+    public Flux<String> rag(@RequestParam String question){
+
+        return ragService.ask(question)
+                .flatMapMany(rag -> {
+
+                    Flux<String> answer = rag.answer();
+
+                    Flux<String> sources = Flux.fromIterable(rag.sources())
+                            .map(s -> "SOURCE:" + s);
+
+                    return Flux.concat(answer, sources);
+                });
     }
 }

@@ -50,6 +50,11 @@ public class AgentService {
                 .system("""
                         You are a helpful AI assistant.
                         
+                        If the user asks about information that might exist in uploaded documents,
+                        use the RagTool to retrieve the answer.
+                        
+                        Only call tools if they are required to retrieve external data.
+                        
                         You will receive the conversation history between you and the user.
                         Treat information previously provided by the user as factual context.
                         

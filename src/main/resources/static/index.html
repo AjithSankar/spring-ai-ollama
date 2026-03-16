@@ -262,11 +262,25 @@
 
     chunk.split("\n").forEach(line => {
 
-    if(line.startsWith("data:")){
+    if(line.startsWith("data:")) {
 
-    const text = line.replace("data:","").trim()
+    const text = line.replace("data:", "").trim()
+
+    if(text.startsWith("SOURCE:")){
+
+    const source = text.replace("SOURCE:", "")
+
+    aiBubble.innerHTML += `
+    <div class="text-green-400 text-sm mt-2">
+    📄 ${source}
+    </div>
+    `
+
+    }else{
 
     aiBubble.innerHTML += text + " "
+
+    }
 
     }
 

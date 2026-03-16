@@ -25,6 +25,6 @@ spring:
     password: ragpass
     driver-class-name: org.postgresql.Driver
 
-logging:
-  level:
-    org.springframework.ai: DEBUG
+#logging:
+#  level:
+#    org.springframework.ai: DEBUG

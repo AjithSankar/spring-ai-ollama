@@ -1,5 +1,6 @@
 package dev.ak.ai.service;
 
+import dev.ak.ai.dto.RagResponse;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -9,6 +10,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,17 +24,25 @@ public class RagService {
         this.chatClient = builder.build();
     }
 
-    public Flux<String> ask(String question) {
+    public Mono<RagResponse> ask(String question) {
 
         return Mono.fromCallable(() -> vectorStore.similaritySearch(question))
                 .subscribeOn(Schedulers.boundedElastic())
-                .flatMapMany(docs -> {
+                .map(docs -> {
 
                     String context = docs.stream()
                             .map(Document::getText)
                             .collect(Collectors.joining("\n"));
 
-                    return chatClient.prompt()
+                    List<String> sources = docs.stream()
+                            .map(d -> (String) d.getMetadata().get("source"))
+                            .filter(Objects::nonNull)
+                            .distinct()
+                            .toList();
+
+                    System.out.println("Sources: " + sources);
+
+                    Flux<String> answerStream = chatClient.prompt()
                             .system("""
                         You are an AI assistant that answers questions using the provided context.
 
@@ -49,6 +59,7 @@ public class RagService {
                         """.formatted(context, question))
                             .stream()
                             .content();
+                    return new RagResponse(answerStream, sources);
                 });
     }
 }

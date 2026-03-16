@@ -16,7 +16,9 @@ import reactor.core.scheduler.Schedulers;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class DocumentIngestionService {
@@ -42,13 +44,29 @@ public class DocumentIngestionService {
 
         String content = extractText(tempFile, filePart.filename());
 
-        List<Document> documents = List.of(new Document(content));
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("source", filePart.filename());
 
-        TextSplitter splitter = new TokenTextSplitter();
+        Document document = new Document(content, metadata);
 
-        List<Document> chunks = splitter.apply(documents);
+        // Use a more aggressive splitter for better chunking of large documents
+        TokenTextSplitter splitter = new TokenTextSplitter(
+                500,     // chunk size
+                100,     // minimum characters per chunk
+                100,     // minimum length to embed
+                10000,   // maximum chunks
+                true,    // keep separator
+                List.of('.', '\n') // punctuation marks
+        );
 
-        vectorStore.add(chunks);
+        List<Document> docs = splitter.apply(List.of(document));
+
+        // Add chunk index to metadata
+        for (int i = 0; i < docs.size(); i++) {
+            docs.get(i).getMetadata().put("chunk", i);
+        }
+
+        vectorStore.add(docs);
 
         tempFile.delete();
 
