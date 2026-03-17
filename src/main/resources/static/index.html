@@ -2,145 +2,276 @@
 
 <html>
 <head>
-    <title>Spring AI Assistant</title>
+
+    <meta charset="UTF-8">
+
+    <title>Spring AI</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
+
         body{
-        font-family:system-ui;
+        font-family: system-ui;
+        background: linear-gradient(180deg,#020617 0%,#020617 30%,#0f172a 100%);
+        color:#e5e7eb;
         }
+
+        /* SIDEBAR */
+
+        .sidebar{
+        background:#111827;
+        border-right:1px solid rgba(255,255,255,.05);
+        }
+
+        .chat-item{
+        padding:10px 12px;
+        border-radius:8px;
+        cursor:pointer;
+        transition:.15s;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        }
+
+        .chat-item:hover{
+        background:#1f2937;
+        }
+
+        .new-chat-btn{
+        background:#1f2937;
+        border:1px solid rgba(255,255,255,.08);
+        }
+
+        .new-chat-btn:hover{
+        background:#374151;
+        }
+
+        /* CHAT */
+
+        .message-row{
+        display:flex;
+        gap:12px;
+        max-width:800px;
+        margin:auto;
+        padding:16px;
+        }
+
+        .ai-row{
+        background:#0f172a;
+        border-top:1px solid rgba(255,255,255,.03);
+        border-bottom:1px solid rgba(255,255,255,.03);
+        }
+
+        .user-row{
+        justify-content:flex-end;
+        }
+
+        .message-content{
+        max-width:650px;
+        line-height:1.6;
+        }
+
+        .user-bubble{
+        background:#1f2937;
+        padding:10px 14px;
+        border-radius:8px;
+        }
+
+        .ai-avatar{
+        width:32px;
+        height:32px;
+        border-radius:6px;
+        background:#22c55e;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:12px;
+        font-weight:bold;
+        color:black;
+        }
+
+        /* INPUT */
+
+        .chat-input-container{
+        max-width:800px;
+        margin:auto;
+        }
+
+        .chat-input{
+        background:#111827;
+        border:1px solid rgba(255,255,255,.08);
+        border-radius:8px;
+        padding:12px;
+        width:100%;
+        }
+
+        .chat-input:focus{
+        outline:none;
+        border-color:#22c55e;
+        }
+
+        .send-btn{
+        background:#16a34a;
+        }
+
+        .upload-btn{
+        background:#9333ea;
+        }
+
+        /* SCROLLBAR */
+
+        ::-webkit-scrollbar{
+        width:6px;
+        }
+
+        ::-webkit-scrollbar-thumb{
+        background:#1f2937;
+        border-radius:6px;
+        }
+
     </style>
 
 </head>
 
-<body class="h-screen flex bg-gray-900 text-white">
+<body class="h-screen flex">
 
-<!-- Sidebar -->
+<!-- SIDEBAR -->
 
-<div class="w-64 bg-gray-800 flex flex-col">
+<div class="w-64 sidebar flex flex-col">
 
-    <div class="p-4 border-b border-gray-700 text-lg font-semibold">
-        Spring AI Chat
+    <div class="p-4 text-lg font-semibold border-b border-gray-700">
+        Spring AI
     </div>
 
-    <button onclick="newChat()" class="m-4 bg-green-600 p-2 rounded">
-        + New Chat
+    <button onclick="newChat()"
+            class="m-3 new-chat-btn rounded p-2">
+
+        * New Chat
+
     </button>
 
-    <div id="history" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+    <div id="history" class="flex-1 overflow-y-auto px-3 space-y-1"></div>
 
 </div>
 
-<!-- Main Chat Area -->
+<!-- CHAT AREA -->
 
 <div class="flex-1 flex flex-col">
 
-    <div id="chat" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
+    <div id="chat" class="flex-1 overflow-y-auto py-8"></div>
 
-    <div id="typing" class="px-6 text-gray-400 hidden">
+    <div id="typing" class="text-gray-400 px-10 pb-2 hidden">
         AI is typing...
     </div>
 
-    <div class="p-4 bg-gray-800 flex gap-2">
+    <!-- INPUT -->
 
-        <input id="question"
-               class="flex-1 bg-gray-700 border border-gray-600 rounded p-3"
-               placeholder="Ask something..."/>
+    <div class="border-t border-gray-800 p-4">
 
-        <button onclick="ask()"
-                class="bg-blue-600 px-6 py-2 rounded">
-            Send
-        </button>
+        <div class="chat-input-container flex gap-3">
 
-        <button onclick="upload()"
-                class="bg-purple-600 px-4 py-2 rounded">
-            Upload Doc
-        </button>
+            <input
+                    id="question"
+                    class="chat-input flex-1"
+                    placeholder="Send a message"/>
+
+            <button
+                    onclick="ask()"
+                    class="send-btn px-5 py-2 rounded text-white">
+                Send </button>
+
+            <button
+                    onclick="upload()"
+                    class="upload-btn px-4 py-2 rounded text-white flex items-center gap-2">
+
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     width="18"
+                     height="18"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2">
+
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+
+                </svg>
+
+                Upload
+
+            </button>
+
+        </div>
 
     </div>
 
 </div>
 
-
 <script>
 
-    let conversationId = null
+    let conversationId=null
 
-
-    /* =========================
-    LOAD CONVERSATIONS
-    ========================= */
+    /* LOAD CONVERSATIONS */
 
     async function loadConversations(){
 
-        const response = await fetch("/conversations")
+    const response=await fetch("/conversations")
 
-        const conversations = await response.json()
+    const conversations=await response.json()
 
-        const history = document.getElementById("history")
+    const history=document.getElementById("history")
 
-        history.innerHTML=""
+    history.innerHTML=""
 
-        conversations.forEach(c => {
+    conversations.forEach(c=>{
 
-        const div = document.createElement("div")
+    const div=document.createElement("div")
 
-        div.className="p-2 hover:bg-gray-700 rounded flex justify-between items-center"
+    div.className="chat-item"
 
-        div.innerHTML = `
-        <span onclick="selectConversation('${c.id}')" class="cursor-pointer flex-1">
-        ${c.title}
-        </span>
+    div.innerHTML=`
+    <span onclick="selectConversation('${c.id}')" class="flex-1">
+    ${c.title}
+    </span>
 
-        <button onclick="deleteChat('${c.id}')" class="text-red-400 ml-2 hover:text-red-600">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6L18 18M6 18L18 6"/>
-        </svg>
-        </button>
-        `
+    <button onclick="deleteChat('${c.id}')"
+    class="text-red-400">x</button>
+    `
 
-        history.appendChild(div)
+    history.appendChild(div)
 
-        })
+    })
 
     }
+
+    /* DELETE */
 
     async function deleteChat(id){
 
     if(!confirm("Delete this chat?")) return
 
-    await fetch("/conversations/" + id,{
-    method:"DELETE"
-    })
+    await fetch("/conversations/"+id,{method:"DELETE"})
 
-    if(conversationId === id){
-
-    conversationId = null
-
+    if(conversationId===id){
+    conversationId=null
     document.getElementById("chat").innerHTML=""
-
     }
 
     loadConversations()
 
     }
 
-    /* =========================
-    NEW CHAT
-    ========================= */
+    /* NEW CHAT */
 
     async function newChat(){
 
-    const title = "New Chat";
-
-    if(!title) return
-
-    const response = await fetch("/conversations?title="+encodeURIComponent(title),{
+    const response=await fetch("/conversations?title="+encodeURIComponent("New Chat"),{
     method:"POST"
     })
 
-    conversationId = await response.json()
+    conversationId=await response.json()
 
     document.getElementById("chat").innerHTML=""
 
@@ -148,129 +279,130 @@
 
     }
 
+    /* SELECT CHAT */
 
-    /* =========================
-    SELECT CHAT FROM SIDEBAR
-    ========================= */
+    async function selectConversation(id){
 
-  async function selectConversation(id){
+    conversationId=id
 
-  conversationId = id
+    const chat=document.getElementById("chat")
 
-  const chat = document.getElementById("chat")
+    chat.innerHTML=""
 
-  chat.innerHTML=""
+    const response=await fetch("/messages/"+id)
 
-  const response = await fetch("/messages/" + id)
+    const messages=await response.json()
 
-  const messages = await response.json()
+    messages.forEach(m=>{
 
-  messages.forEach(m => {
+    if(m.type==="USER"){
 
-  if(m.type === "USER"){
+    chat.innerHTML+=`
+    <div class="message-row user-row">
 
-  chat.innerHTML += `
-  <div class="text-right">
-  <div class="inline-block bg-blue-600 px-4 py-2 rounded-lg">
-  ${m.content}
-  </div>
-  </div>
-  `
+    <div class="message-content user-bubble">
+    ${m.content}
+    </div>
 
-  }
+    </div>
+    `
 
-  else{
+    }else{
 
-  chat.innerHTML += `
-  <div class="text-left">
-  <div class="inline-block bg-gray-700 px-4 py-2 rounded-lg">
-  ${m.content}
-  </div>
-  </div>
-  `
+    chat.innerHTML+=`
+    <div class="message-row ai-row">
 
-  }
+    <div class="ai-avatar">
+    AI
+    </div>
 
-  })
+    <div class="message-content">
+    ${m.content}
+    </div>
 
-  }
+    </div>
+    `
 
+    }
 
-    /* =========================
-    ASK QUESTION
-    ========================= */
+    })
+
+    }
+
+    /* ASK */
 
     async function ask(){
 
     if(!conversationId){
 
-    alert("Please create a chat first")
+    alert("Create a chat first")
 
     return
 
     }
 
-    const input = document.getElementById("question")
+    const input=document.getElementById("question")
 
-    const question = input.value
+    const question=input.value
 
     input.value=""
 
-    const chat = document.getElementById("chat")
+    const chat=document.getElementById("chat")
 
-    chat.innerHTML += `
-    <div class="text-right">
-    <div class="inline-block bg-blue-600 px-4 py-2 rounded-lg">
+    chat.innerHTML+=`
+    <div class="message-row user-row">
+
+    <div class="message-content user-bubble">
     ${question}
     </div>
+
     </div>
     `
 
-    const aiDiv = document.createElement("div")
+    const aiDiv=document.createElement("div")
 
-    aiDiv.className="text-left"
+    aiDiv.className="message-row ai-row"
 
-    aiDiv.innerHTML = `
-    <div class="inline-block bg-gray-700 px-4 py-2 rounded-lg"></div>
+    aiDiv.innerHTML=`
+    <div class="ai-avatar">AI</div>
+    <div class="message-content"></div>
     `
 
     chat.appendChild(aiDiv)
 
-    const aiBubble = aiDiv.querySelector("div")
+    const aiBubble=aiDiv.querySelector(".message-content")
 
     document.getElementById("typing").classList.remove("hidden")
 
-    setTimeout(() => {
-    loadConversations()
-    }, 800)
+    setTimeout(()=>loadConversations(),800)
 
-    const response = await fetch(
+    const response=await fetch(
     "/agent/ask?question="+encodeURIComponent(question)+"&conversationId="+conversationId
     )
 
-    const reader = response.body.getReader()
+    const reader=response.body.getReader()
 
-    const decoder = new TextDecoder()
+    const decoder=new TextDecoder()
 
     while(true){
 
-    const {done,value} = await reader.read()
+    const {done,value}=await reader.read()
 
     if(done) break
 
-    const chunk = decoder.decode(value)
+    const chunk=decoder.decode(value)
 
-    chunk.split("\n").forEach(line => {
+    chunk.split("\n").forEach(line=>{
 
-    if(line.startsWith("data:")) {
+    if(line.startsWith("data:")){
 
-    const text = line.replace("data:", "").trim()
+    const text=line.replace("data:","").trim()
 
     if(text.startsWith("SOURCE:")){
 
-    const source = text.replace("SOURCE:", "")
+    const source=text.replace("SOURCE:","")
 
-    aiBubble.innerHTML += `
+    aiBubble.innerHTML+=`
     <div class="text-green-400 text-sm mt-2">
     📄 ${source}
     </div>
@@ -278,7 +410,7 @@
 
     }else{
 
-    aiBubble.innerHTML += text + " "
+    aiBubble.innerHTML+=text+" "
 
     }
 
@@ -286,7 +418,7 @@
 
     })
 
-    chat.scrollTop = chat.scrollHeight
+    chat.scrollTop=chat.scrollHeight
 
     }
 
@@ -294,29 +426,23 @@
 
     }
 
-
-    /* =========================
-    UPLOAD DOCUMENT (RAG)
-    ========================= */
+    /* UPLOAD */
 
     async function upload(){
 
-    const input = document.createElement("input")
+    const input=document.createElement("input")
 
     input.type="file"
 
-    input.onchange = async () => {
+    input.onchange=async()=>{
 
-    const file = input.files[0]
+    const file=input.files[0]
 
-    const form = new FormData()
+    const form=new FormData()
 
     form.append("file",file)
 
-    await fetch("/documents/upload",{
-    method:"POST",
-    body:form
-    })
+    await fetch("/documents/upload",{method:"POST",body:form})
 
     alert("Document uploaded!")
 
@@ -325,11 +451,6 @@
     input.click()
 
     }
-
-
-    /* =========================
-    INITIAL LOAD
-    ========================= */
 
     loadConversations()
 

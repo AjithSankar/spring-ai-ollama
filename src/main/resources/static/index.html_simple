@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Spring AI Assistant</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body{
+        font-family:system-ui;
+        }
+    </style>
+
+</head>
+
+<body class="h-screen flex bg-gray-900 text-white">
+
+<!-- Sidebar -->
+
+<div class="w-64 bg-gray-800 flex flex-col">
+
+    <div class="p-4 border-b border-gray-700 text-lg font-semibold">
+        Spring AI Chat
+    </div>
+
+    <button onclick="newChat()" class="m-4 bg-green-600 p-2 rounded">
+        + New Chat
+    </button>
+
+    <div id="history" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+
+</div>
+
+<!-- Main Chat Area -->
+
+<div class="flex-1 flex flex-col">
+
+    <div id="chat" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
+
+    <div id="typing" class="px-6 text-gray-400 hidden">
+        AI is typing...
+    </div>
+
+    <div class="p-4 bg-gray-800 flex gap-2">
+
+        <input id="question"
+               class="flex-1 bg-gray-700 border border-gray-600 rounded p-3"
+               placeholder="Ask something..."/>
+
+        <button onclick="ask()"
+                class="bg-blue-600 px-6 py-2 rounded">
+            Send
+        </button>
+
+        <button onclick="upload()"
+                class="bg-purple-600 px-4 py-2 rounded">
+            Upload Doc
+        </button>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    let conversationId = null
+
+
+    /* =========================
+    LOAD CONVERSATIONS
+    ========================= */
+
+    async function loadConversations(){
+
+        const response = await fetch("/conversations")
+
+        const conversations = await response.json()
+
+        const history = document.getElementById("history")
+
+        history.innerHTML=""
+
+        conversations.forEach(c => {
+
+        const div = document.createElement("div")
+
+        div.className="p-2 hover:bg-gray-700 rounded flex justify-between items-center"
+
+        div.innerHTML = `
+        <span onclick="selectConversation('${c.id}')" class="cursor-pointer flex-1">
+        ${c.title}
+        </span>
+
+        <button onclick="deleteChat('${c.id}')" class="text-red-400 ml-2 hover:text-red-600">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6L18 18M6 18L18 6"/>
+        </svg>
+        </button>
+        `
+
+        history.appendChild(div)
+
+        })
+
+    }
+
+    async function deleteChat(id){
+
+    if(!confirm("Delete this chat?")) return
+
+    await fetch("/conversations/" + id,{
+    method:"DELETE"
+    })
+
+    if(conversationId === id){
+
+    conversationId = null
+
+    document.getElementById("chat").innerHTML=""
+
+    }
+
+    loadConversations()
+
+    }
+
+    /* =========================
+    NEW CHAT
+    ========================= */
+
+    async function newChat(){
+
+    const title = "New Chat";
+
+    if(!title) return
+
+    const response = await fetch("/conversations?title="+encodeURIComponent(title),{
+    method:"POST"
+    })
+
+    conversationId = await response.json()
+
+    document.getElementById("chat").innerHTML=""
+
+    loadConversations()
+
+    }
+
+
+    /* =========================
+    SELECT CHAT FROM SIDEBAR
+    ========================= */
+
+  async function selectConversation(id){
+
+  conversationId = id
+
+  const chat = document.getElementById("chat")
+
+  chat.innerHTML=""
+
+  const response = await fetch("/messages/" + id)
+
+  const messages = await response.json()
+
+  messages.forEach(m => {
+
+  if(m.type === "USER"){
+
+  chat.innerHTML += `
+  <div class="text-right">
+  <div class="inline-block bg-blue-600 px-4 py-2 rounded-lg">
+  ${m.content}
+  </div>
+  </div>
+  `
+
+  }
+
+  else{
+
+  chat.innerHTML += `
+  <div class="text-left">
+  <div class="inline-block bg-gray-700 px-4 py-2 rounded-lg">
+  ${m.content}
+  </div>
+  </div>
+  `
+
+  }
+
+  })
+
+  }
+
+
+    /* =========================
+    ASK QUESTION
+    ========================= */
+
+    async function ask(){
+
+    if(!conversationId){
+
+    alert("Please create a chat first")
+
+    return
+
+    }
+
+    const input = document.getElementById("question")
+
+    const question = input.value
+
+    input.value=""
+
+    const chat = document.getElementById("chat")
+
+    chat.innerHTML += `
+    <div class="text-right">
+    <div class="inline-block bg-blue-600 px-4 py-2 rounded-lg">
+    ${question}
+    </div>
+    </div>
+    `
+
+    const aiDiv = document.createElement("div")
+
+    aiDiv.className="text-left"
+
+    aiDiv.innerHTML = `
+    <div class="inline-block bg-gray-700 px-4 py-2 rounded-lg"></div>
+    `
+
+    chat.appendChild(aiDiv)
+
+    const aiBubble = aiDiv.querySelector("div")
+
+    document.getElementById("typing").classList.remove("hidden")
+
+    setTimeout(() => {
+    loadConversations()
+    }, 800)
+
+    const response = await fetch(
+    "/agent/ask?question="+encodeURIComponent(question)+"&conversationId="+conversationId
+    )
+
+    const reader = response.body.getReader()
+
+    const decoder = new TextDecoder()
+
+    while(true){
+
+    const {done,value} = await reader.read()
+
+    if(done) break
+
+    const chunk = decoder.decode(value)
+
+    chunk.split("\n").forEach(line => {
+
+    if(line.startsWith("data:")) {
+
+    const text = line.replace("data:", "").trim()
+
+    if(text.startsWith("SOURCE:")){
+
+    const source = text.replace("SOURCE:", "")
+
+    aiBubble.innerHTML += `
+    <div class="text-green-400 text-sm mt-2">
+    📄 ${source}
+    </div>
+    `
+
+    }else{
+
+    aiBubble.innerHTML += text + " "
+
+    }
+
+    }
+
+    })
+
+    chat.scrollTop = chat.scrollHeight
+
+    }
+
+    document.getElementById("typing").classList.add("hidden")
+
+    }
+
+
+    /* =========================
+    UPLOAD DOCUMENT (RAG)
+    ========================= */
+
+    async function upload(){
+
+    const input = document.createElement("input")
+
+    input.type="file"
+
+    input.onchange = async () => {
+
+    const file = input.files[0]
+
+    const form = new FormData()
+
+    form.append("file",file)
+
+    await fetch("/documents/upload",{
+    method:"POST",
+    body:form
+    })
+
+    alert("Document uploaded!")
+
+    }
+
+    input.click()
+
+    }
+
+
+    /* =========================
+    INITIAL LOAD
+    ========================= */
+
+    loadConversations()
+
+</script>
+
+</body>
+</html>
