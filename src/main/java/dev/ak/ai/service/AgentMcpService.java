@@ -75,6 +75,7 @@ public class AgentMcpService {
                 // 1. Register ONLY local beans annotated with @Tool here
                 .defaultTools(localTools)
                 // 2. Register ONLY the pre-built MCP callbacks here
+                .defaultToolCallbacks(cachedMcpTools)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
     }
