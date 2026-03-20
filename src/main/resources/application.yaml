@@ -15,6 +15,21 @@ spring:
             jdbc:
               initialize-schema: always
               platform: postgres
+    mcp:
+      client:
+        enabled: true
+        base-url: http://localhost:8081
+        toolcallback:
+          enabled: true
+        name: my-mcp-client
+        version: 1.0.0
+        type: SYNC
+        request-timeout: 20s
+        streamable-http:
+          connections:
+            rag-server:
+              url: http://localhost:8081
+
     vectorstore:
       pgvector:
         initialize-schema: true
@@ -25,6 +40,16 @@ spring:
     password: ragpass
     driver-class-name: org.postgresql.Driver
 
-#logging:
-#  level:
-#    org.springframework.ai: DEBUG
+logging:
+  level:
+    # 1. See Ollama's reasoning and tool selection
+    #org.springframework.ai.chat: DEBUG
+
+    # 2. See the local tool execution and callback triggers
+    org.springframework.ai.tool: TRACE
+
+    # 3. See the specific MCP client JSON-RPC payloads going to port 8081
+    org.springframework.ai.mcp: TRACE
+
+    # 4. (Optional) See the raw HTTP web client streams
+    org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE

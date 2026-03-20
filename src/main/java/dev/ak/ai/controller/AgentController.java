@@ -1,5 +1,6 @@
 package dev.ak.ai.controller;
 
+import dev.ak.ai.service.AgentMcpService;
 import dev.ak.ai.service.AgentService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -9,9 +10,9 @@ import reactor.core.publisher.Flux;
 @RequestMapping("/agent")
 public class AgentController {
 
-    private final AgentService agentService;
+    private final AgentMcpService agentService;
 
-    public AgentController(AgentService agentService) {
+    public AgentController(AgentMcpService agentService) {
         this.agentService = agentService;
     }
 
