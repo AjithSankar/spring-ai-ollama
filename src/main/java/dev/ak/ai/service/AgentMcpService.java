@@ -1,5 +1,6 @@
 package dev.ak.ai.service;
 
+import dev.ak.ai.config.LoggingToolCallbackDecorator;
 import dev.ak.ai.entity.Conversation;
 import dev.ak.ai.repository.ConversationRepository;
 import dev.ak.ai.tools.DatabaseTool;
@@ -36,7 +37,6 @@ public class AgentMcpService {
             50, 10000, "ai-executor-pool"
     );
 
-    @Autowired
     private AiDebugLogger debugLogger;
 
     public AgentMcpService(ChatClient.Builder builder,
@@ -46,10 +46,11 @@ public class AgentMcpService {
                            ToolCallbackProvider mcpToolProvider, // <--- Inject the MCP Tool Provider
                            ChatMemory chatMemory,
                            ConversationRepository conversationRepository,
-                           TitleService titleService) {
+                           TitleService titleService, AiDebugLogger debugLogger) {
 
         this.conversationRepository = conversationRepository;
         this.titleService = titleService;
+        this.debugLogger = debugLogger;
 
         Object[] localTools = { ragTool, databaseTool, httpClientTool }; // You can add databaseTool, httpClientTool here too
 
@@ -60,8 +61,15 @@ public class AgentMcpService {
         // We fetch the tools NOW during application startup, not during the user request.
         try {
             if (mcpToolProvider != null && mcpToolProvider.getToolCallbacks() != null) {
-                cachedMcpTools = mcpToolProvider.getToolCallbacks();
-                log.info("Successfully loaded and cached MCP tools from remote server.");
+                // Fetch the raw tools from port 8081
+                ToolCallback[] rawMcpTools = mcpToolProvider.getToolCallbacks();
+
+                // Wrap every MCP tool in our Logging Decorator
+                cachedMcpTools = Arrays.stream(rawMcpTools)
+                        .map(tool -> new LoggingToolCallbackDecorator(tool, debugLogger))
+                        .toArray(ToolCallback[]::new);
+
+                log.info("Successfully loaded, wrapped, and cached MCP tools from remote server.");
             }
         } catch (Exception e) {
             // 3. Graceful Degradation
