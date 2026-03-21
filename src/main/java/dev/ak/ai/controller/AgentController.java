@@ -1,6 +1,7 @@
 package dev.ak.ai.controller;
 
 import dev.ak.ai.service.AgentMcpService;
+import dev.ak.ai.service.AgentOrchestrator;
 import dev.ak.ai.service.AgentService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -10,15 +11,15 @@ import reactor.core.publisher.Flux;
 @RequestMapping("/agent")
 public class AgentController {
 
-    private final AgentMcpService agentService;
+    private final AgentOrchestrator agentOrchestrator;
 
-    public AgentController(AgentMcpService agentService) {
-        this.agentService = agentService;
+    public AgentController(AgentOrchestrator agentOrchestrator) {
+        this.agentOrchestrator = agentOrchestrator;
     }
 
     @GetMapping(value = "/ask", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> ask(@RequestParam String question, @RequestParam String conversationId) {
 
-        return agentService.ask(question, conversationId);
+        return agentOrchestrator.ask(question, conversationId);
     }
 }
