@@ -3,8 +3,6 @@ package dev.ak.ai.service;
 import dev.ak.ai.config.LoggingToolCallbackDecorator;
 import dev.ak.ai.entity.Conversation;
 import dev.ak.ai.repository.ConversationRepository;
-import dev.ak.ai.tools.DatabaseTool;
-import dev.ak.ai.tools.HttpClientTool;
 import dev.ak.ai.tools.RagTool;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -12,15 +10,12 @@ import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -40,8 +35,6 @@ public class AgentMcpService {
     private AiDebugLogger debugLogger;
 
     public AgentMcpService(ChatClient.Builder builder,
-                           DatabaseTool databaseTool,
-                            HttpClientTool httpClientTool,
                            RagTool ragTool,
                            ToolCallbackProvider mcpToolProvider, // <--- Inject the MCP Tool Provider
                            ChatMemory chatMemory,
@@ -52,7 +45,7 @@ public class AgentMcpService {
         this.titleService = titleService;
         this.debugLogger = debugLogger;
 
-        Object[] localTools = { ragTool, databaseTool, httpClientTool }; // You can add databaseTool, httpClientTool here too
+        Object[] localTools = { ragTool};
 
         // Array to hold our cached MCP tools
         ToolCallback[] cachedMcpTools = new ToolCallback[0];
@@ -72,9 +65,6 @@ public class AgentMcpService {
                 log.info("Successfully loaded, wrapped, and cached MCP tools from remote server.");
             }
         } catch (Exception e) {
-            // 3. Graceful Degradation
-            // If port 8081 is down at startup, we log it but still start the chat app
-            // so users can at least use the Database and HTTP tools.
             log.warn("Failed to connect to MCP server at startup. Running with local tools only.", e);
         }
 
@@ -111,10 +101,9 @@ public class AgentMcpService {
                             .system("""
                                     You are a helpful AI assistant.
                                     
-                                    If the user asks about information that might exist in uploaded documents,
-                                    use the mcp registered tool to retrieve the answer.
+                                    Use the RAG tool when the user asks about uploaded documents or internal files.
                                     
-                                    Only call tools if they are required to retrieve external data.
+                                    Use MCP tools only when external data or system integration is required.
                                     
                                     You will receive the conversation history between you and the user.
                                     Treat information previously provided by the user as factual context.
