@@ -2,6 +2,7 @@ package dev.ak.ai.service;
 
 import dev.ak.ai.config.LoggingToolCallbackDecorator;
 import dev.ak.ai.entity.Conversation;
+import dev.ak.ai.model.HandoffException;
 import dev.ak.ai.model.IntentClassification;
 import dev.ak.ai.repository.ConversationRepository;
 import dev.ak.ai.tools.RagTool;
@@ -55,6 +56,8 @@ public class AgentOrchestrator {
     private final ConversationRepository conversationRepository;
     private final TitleService titleService;
     private final AiDebugLogger debugLogger;
+    private final PromptGuardService promptGuard;
+    private final SemanticCacheService semanticCache;
 
     // Dedicated Thread Pool to protect the WebFlux Netty threads
     private final Scheduler aiScheduler = Schedulers.newBoundedElastic(
@@ -67,11 +70,13 @@ public class AgentOrchestrator {
                              ChatMemory chatMemory,
                              ConversationRepository conversationRepository,
                              TitleService titleService,
-                             AiDebugLogger debugLogger) {
+                             AiDebugLogger debugLogger, PromptGuardService promptGuard, SemanticCacheService semanticCache) {
 
         this.conversationRepository = conversationRepository;
         this.titleService = titleService;
         this.debugLogger = debugLogger;
+        this.promptGuard = promptGuard;
+        this.semanticCache = semanticCache;
 
         ToolCallback[] allMcpTools = new ToolCallback[0];
 
@@ -111,7 +116,9 @@ public class AgentOrchestrator {
 
         // 3. Database Agent: Gets ONLY the MCP tools (since DB and HTTP moved to the server)
         this.databaseAgent = builder
-                .defaultSystem("You are a Data Engineer. You query databases and APIs to answer user questions." + SHARED_MEMORY_RULES)
+                .defaultSystem("You are a Data Engineer. You query databases and APIs to answer user questions. " +
+                        "CRITICAL: If your tools return no results or you cannot answer the question, do NOT apologize. " +
+                        "You must output exactly this phrase and nothing else: HANDOFF_REQUIRED" + SHARED_MEMORY_RULES)
                 .defaultToolCallbacks(mcpDbTools)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
@@ -125,11 +132,19 @@ public class AgentOrchestrator {
 
     public Flux<String> ask(String question, String conversationId) {
         debugLogger.log("USER QUESTION", question);
-        debugLogger.log("CONVERSATION ID", conversationId);
 
-        // We wrap the synchronous database lookup AND the synchronous router call
-        // inside Mono.fromCallable. This guarantees both run on our aiScheduler
-        // and safely keeps the WebFlux event loop unblocked.
+        // 1. Guardrail Check
+        return promptGuard.validate(question)
+                // 2. Semantic Cache Check
+                .flatMap(safeQuestion -> semanticCache.checkCache(safeQuestion)
+                        .map(cached -> Flux.just("[CACHED] " + cached)) // Cache Hit
+                        .defaultIfEmpty(executeOrchestrator(safeQuestion, conversationId)) // Cache Miss
+                )
+                .flatMapMany(flux -> flux);
+    }
+
+    public Flux<String> executeOrchestrator(String question, String conversationId) {
+
         return Mono.fromCallable(() -> {
 
                     // 1. Handle Conversation Logic (Blocking JPA/JDBC call)
@@ -156,22 +171,44 @@ public class AgentOrchestrator {
                     debugLogger.log("ROUTER DECISION", "Intent: " + classification.intent() + " | Reason: " + classification.reasoning());
 
                     // 3. Route to the specialized reactive stream
-                    return switch (classification.intent()) {
-                        case DOCUMENT_SEARCH -> documentAgent.prompt()
-                                .user(question)
-                                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
-                                .stream().content();
+                    switch (classification.intent()) {
+                        case DOCUMENT_SEARCH:
+                            return streamWithCacheSave(question, documentAgent.prompt().user(question).stream().content());
 
-                        case DATABASE_QUERY -> databaseAgent.prompt()
-                                .user(question)
-                                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
-                                .stream().content();
+                        case DATABASE_QUERY:
+                            // 3. THE HANDOFF LOGIC
+                            Flux<String> primaryStream = databaseAgent.prompt().user(question).stream().content();
+                            Flux<String> fallbackStream = documentAgent.prompt().user(question).stream().content();
 
-                        case GENERAL_CHAT -> generalAgent.prompt()
-                                .user(question)
-                                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
-                                .stream().content();
-                    };
+                            return primaryStream
+                                    // Intercept the stream in real-time
+                                    .flatMap(chunk -> {
+                                        if (chunk != null && chunk.contains("HANDOFF_REQUIRED")) {
+                                            return Flux.error(new HandoffException());
+                                        }
+                                        return Flux.just(chunk);
+                                    })
+                                    // If we caught the HandoffException, instantly switch to the Document Agent
+                                    .onErrorResume(HandoffException.class, e -> {
+                                        debugLogger.log("AGENT HANDOFF", "Database Agent failed. Rerouting to Document Agent.");
+                                        return streamWithCacheSave(question, fallbackStream);
+                                    })
+                                    // If the primary stream succeeds normally, cache it
+                                    .transform(flux -> streamWithCacheSave(question, flux));
+
+                        case GENERAL_CHAT:
+                        default:
+                            return streamWithCacheSave(question, generalAgent.prompt().user(question).stream().content());
+                    }
                 });
+    }
+
+    // Utility to cache the final concatenated response after the stream finishes
+    private Flux<String> streamWithCacheSave(String question, Flux<String> stream) {
+        // We use a StringBuffer to collect the stream without breaking the reactive flow
+        StringBuffer fullResponse = new StringBuffer();
+        return stream
+                .doOnNext(fullResponse::append)
+                .doOnComplete(() -> semanticCache.saveToCache(question, fullResponse.toString()));
     }
 }
